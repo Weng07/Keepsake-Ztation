@@ -1,81 +1,114 @@
 # Keepsake Ztation
 
-A luxury-style Next.js 15.5.19 souvenir shop starter with Tailwind CSS v4, local product images, blog content, and a beginner-friendly admin dashboard.
+A live-ready showcase website for a luxury souvenir studio. Built with Next.js 15.5.19, Tailwind CSS v4, and a Supabase-powered admin dashboard.
 
-## Getting started
+## What this version includes
+
+- Public showcase pages for products, blogs, about, and home
+- No cart and no customer accounts
+- Product ordering through a Messenger button
+- Private admin dashboard with Supabase Auth login
+- Hamburger/sidebar admin menu
+- Add, edit, publish, hide, and delete products
+- Add, edit, publish, unpublish, and delete blogs
+- Upload product and blog images to Supabase Storage
+- Product and blog comments with admin moderation
+- Product views, blog views, and Messenger click analytics
+- Settings page for Messenger and social links
+- Tailwind CSS v4 PostCSS setup
+- Vercel-ready environment variables
+
+## Install locally
 
 ```bash
-npm config set registry https://registry.npmjs.org/
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open:
 
-## Admin dashboard
+```text
+http://localhost:3000
+```
 
-The admin dashboard is available directly at:
+Admin:
 
 ```text
 http://localhost:3000/admin
 ```
 
-The Admin link is intentionally hidden from the public header and footer navigation.
+## Supabase setup
 
-From the dashboard, you can:
-
-- Add a new product
-- Upload a product photo
-- Publish a blog post
-- Upload a blog cover image
-
-You do not need to copy image paths back into the source code. When you save from the admin page, the project automatically writes the image and content files.
-
-## Where uploaded content is saved
-
-Product images:
+Create a free Supabase project, then open the SQL Editor and run:
 
 ```text
-public/uploads/products/
+supabase/schema.sql
 ```
 
-Blog images:
+Create two public storage buckets in Supabase Storage:
 
 ```text
-public/uploads/blogs/
+product-images
+blog-images
 ```
 
-Product content files:
+For each bucket, make it public so uploaded images display on the website.
+
+Create an admin user in Supabase:
 
 ```text
-content/products/
+Authentication -> Users -> Add user
 ```
 
-Blog content files:
+Use that email and password to log in at `/admin`.
+
+## Environment variables
+
+Create `.env.local` using `.env.example`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
+
+Important: never expose `SUPABASE_SERVICE_ROLE_KEY` in client code. It is only used inside server API routes.
+
+## Vercel deployment
+
+1. Push the project to GitHub.
+2. Import the repo into Vercel.
+3. Add the same environment variables in Vercel Project Settings.
+4. Deploy.
+
+## Admin dashboard guide
+
+The admin menu includes:
 
 ```text
-content/blog/
+Dashboard
+Add Product
+Manage Products
+Add Blog
+Manage Blogs
+Product Comments
+Blog Comments
+Analytics
+Settings
 ```
 
-## Important hosting note
+Products, blogs, comments, analytics, and settings are stored in Supabase. You do not need to edit source files after publishing content through the dashboard.
 
-This local file-saving admin system works well for local development and traditional Node/VPS hosting. On serverless hosts like Vercel, uploaded files and Markdown writes may not persist after deployment. For a production public store, connect the dashboard to a database or CMS such as Supabase, Firebase, Sanity, or another persistent backend.
+## Messenger ordering
 
-## Tech stack
+Add your Messenger link in:
 
-- Next.js 15.5.19
-- React 19
-- Tailwind CSS v4
-- `@tailwindcss/postcss`
-- `@tailwindcss/typography`
-- Local Markdown content
-- Local image uploads
-
-## Git ignore
-
-The project excludes install/build folders:
-
-```gitignore
-node_modules/
-.next/
+```text
+/admin -> Settings -> Messenger link
 ```
+
+Each product has an Order on Messenger button. Button clicks are tracked in analytics.
+
+## Notes
+
+If Supabase environment variables are missing, the public site falls back to the original Markdown sample content. The live admin dashboard requires Supabase.

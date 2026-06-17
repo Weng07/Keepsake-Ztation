@@ -5,31 +5,33 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, Calendar } from "lucide-react";
 import { getPostBySlug, getAllPosts } from "@/lib/blog";
 import { formatDate } from "@/lib/utils";
-
-export const dynamic = "force-dynamic";
+import AnalyticsTracker from "@/components/ui/AnalyticsTracker";
+import CommentsBox from "@/components/ui/CommentsBox";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
 export async function generateStaticParams() {
-  return getAllPosts().map((p) => ({ slug: p.slug }));
+  const posts = await getAllPosts();
+  return posts.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostBySlug(slug);
   if (!post) return {};
   return { title: post.title, description: post.excerpt };
 }
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostBySlug(slug);
   if (!post) notFound();
 
   return (
     <div className="pt-24 min-h-screen bg-parchment">
+      <AnalyticsTracker targetType="blog" targetSlug={post.slug} />
       <div className="max-w-3xl mx-auto px-6 lg:px-10 py-16">
         <Link href="/blog" className="inline-flex items-center gap-2 text-xs tracking-widest uppercase text-muted hover:text-gold transition-colors mb-12">
           <ArrowLeft size={14} /> Back to Journal
@@ -64,6 +66,8 @@ export default async function BlogPostPage({ params }: Props) {
         <div className="prose prose-lg prose-stone max-w-none prose-headings:font-display prose-headings:font-normal prose-a:text-gold prose-a:no-underline hover:prose-a:underline">
           <div dangerouslySetInnerHTML={{ __html: post.content }} />
         </div>
+
+        <CommentsBox targetType="blog" targetSlug={post.slug} />
 
         {/* Tags */}
         {post.tags?.length > 0 && (

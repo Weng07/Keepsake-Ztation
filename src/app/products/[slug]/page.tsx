@@ -5,31 +5,36 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Download, ExternalLink, Tag } from "lucide-react";
 import { getProductBySlug, getAllProducts } from "@/lib/products";
 import { categoryLabel } from "@/lib/utils";
-
-export const dynamic = "force-dynamic";
+import { getSiteSetting } from "@/lib/settings";
+import AnalyticsTracker from "@/components/ui/AnalyticsTracker";
+import MessengerOrderButton from "@/components/ui/MessengerOrderButton";
+import CommentsBox from "@/components/ui/CommentsBox";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
 export async function generateStaticParams() {
-  return getAllProducts().map((p) => ({ slug: p.slug }));
+  const products = await getAllProducts();
+  return products.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) return {};
   return { title: product.title, description: product.description };
 }
 
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) notFound();
+  const messengerUrl = await getSiteSetting("messenger_url", "");
 
   return (
     <div className="pt-24 min-h-screen bg-parchment">
+      <AnalyticsTracker targetType="product" targetSlug={product.slug} />
       <div className="max-w-7xl mx-auto px-6 lg:px-10 py-16">
         <Link href="/products" className="inline-flex items-center gap-2 text-xs tracking-widest uppercase text-muted hover:text-gold transition-colors mb-12">
           <ArrowLeft size={14} /> Back to Shop
@@ -74,12 +79,13 @@ export default async function ProductDetailPage({ params }: Props) {
 
             {/* Actions */}
             <div className="flex flex-col gap-3">
+              <MessengerOrderButton productSlug={product.slug} productTitle={product.title} message={product.messengerMessage} messengerUrl={messengerUrl} />
               {product.externalLink && (
-                <a href={product.externalLink} target="_blank" rel="noopener noreferrer" className="btn-primary justify-center">
+                <a href={product.externalLink} target="_blank" rel="noopener noreferrer" className="btn-outline justify-center">
                   {product.downloadable ? (
                     <><Download size={16} /> Download</>
                   ) : (
-                    <><ExternalLink size={16} /> Buy Now</>
+                    <><ExternalLink size={16} /> External Link</>
                   )}
                 </a>
               )}
@@ -101,6 +107,7 @@ export default async function ProductDetailPage({ params }: Props) {
             )}
           </div>
         </div>
+        <CommentsBox targetType="product" targetSlug={product.slug} />
       </div>
     </div>
   );

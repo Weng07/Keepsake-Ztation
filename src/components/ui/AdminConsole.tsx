@@ -1,330 +1,662 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import toast from "react-hot-toast";
 import {
+  BarChart3,
   BookOpen,
   CheckCircle2,
-  Image as ImageIcon,
-  Loader2,
-  LockKeyhole,
+  Eye,
+  ImagePlus,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MessageCircle,
   Package,
-  Sparkles,
-  UploadCloud,
+  PenLine,
+  PlusCircle,
+  Save,
+  Settings,
+  Trash2,
+  X,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { createBrowserSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
+import type { AnalyticsRow, BlogRow, CommentRow, ProductRow, SiteSettingRow } from "@/lib/admin-schema";
 
-const fieldClass =
-  "w-full border border-stone/15 bg-parchment/75 px-4 py-3 text-sm text-ink outline-none transition focus:border-gold focus:bg-ivory";
+const inputClass = "w-full border border-stone/15 bg-parchment/80 px-4 py-3 text-sm text-ink outline-none transition focus:border-gold";
 const labelClass = "text-[10px] font-semibold uppercase tracking-[0.22em] text-muted";
-const panelClass = "bg-ivory border border-stone/10 p-7 shadow-sm";
 
-type SaveResult = {
-  ok?: boolean;
-  message?: string;
-  slug?: string;
-  image?: string;
-  path?: string;
-  error?: string;
+type Section =
+  | "dashboard"
+  | "addProduct"
+  | "manageProducts"
+  | "addBlog"
+  | "manageBlogs"
+  | "productComments"
+  | "blogComments"
+  | "analytics"
+  | "settings";
+
+type ProductForm = {
+  id?: string;
+  title: string;
+  slug: string;
+  description: string;
+  long_description: string;
+  price: string;
+  category: string;
+  tags: string;
+  cover_image: string;
+  featured: boolean;
+  available: boolean;
+  messenger_message: string;
 };
 
-function makeSlug(value: string) {
-  return value
+type BlogForm = {
+  id?: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  cover_image: string;
+  author: string;
+  tags: string;
+  published: boolean;
+  date: string;
+};
+
+const emptyProduct: ProductForm = {
+  title: "",
+  slug: "",
+  description: "",
+  long_description: "",
+  price: "",
+  category: "souvenir",
+  tags: "souvenir, gift",
+  cover_image: "",
+  featured: false,
+  available: true,
+  messenger_message: "Hi, I want to order this product.",
+};
+
+const emptyBlog: BlogForm = {
+  title: "",
+  slug: "",
+  excerpt: "",
+  content: "",
+  cover_image: "",
+  author: "Keepsake Ztation Studio",
+  tags: "souvenir, studio",
+  published: true,
+  date: new Date().toISOString().slice(0, 10),
+};
+
+const menuItems: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "addProduct", label: "Add Product", icon: PlusCircle },
+  { id: "manageProducts", label: "Manage Products", icon: Package },
+  { id: "addBlog", label: "Add Blog", icon: PenLine },
+  { id: "manageBlogs", label: "Manage Blogs", icon: BookOpen },
+  { id: "productComments", label: "Product Comments", icon: MessageCircle },
+  { id: "blogComments", label: "Blog Comments", icon: MessageCircle },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "settings", label: "Settings", icon: Settings },
+];
+
+function slugFrom(text: string) {
+  return text
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/(^-|-$)/g, "");
+}
+
+async function getToken() {
+  const supabase = createBrowserSupabaseClient();
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token;
+}
+
+async function adminFetch(path: string, init: RequestInit = {}) {
+  const token = await getToken();
+  const headers = new Headers(init.headers);
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(path, { ...init, headers });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || "Admin request failed");
+  return json;
 }
 
 export default function AdminConsole() {
-  const today = new Date().toISOString().slice(0, 10);
-  const [savingProduct, setSavingProduct] = useState(false);
-  const [savingBlog, setSavingBlog] = useState(false);
-  const [lastProduct, setLastProduct] = useState<SaveResult | null>(null);
-  const [lastBlog, setLastBlog] = useState<SaveResult | null>(null);
+  const [section, setSection] = useState<Section>("dashboard");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [signedIn, setSignedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [blogs, setBlogs] = useState<BlogRow[]>([]);
+  const [comments, setComments] = useState<CommentRow[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsRow[]>([]);
+  const [settingsRows, setSettingsRows] = useState<SiteSettingRow[]>([]);
+  const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
+  const [blogForm, setBlogForm] = useState<BlogForm>(emptyBlog);
+  const [saving, setSaving] = useState(false);
 
-  const [product, setProduct] = useState({
-    title: "Brass Landmark Keychain",
-    slug: "brass-landmark-keychain",
-    description: "A polished brass keychain designed as a compact travel keepsake.",
-    longDescription:
-      "Write a longer description here. Mention the material, size, story, and why it makes a meaningful gift.",
-    price: "$22.00",
-    category: "accessory",
-    tags: "souvenir, gift, travel",
-    featured: false,
-    available: true,
-  });
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
 
-  const [blog, setBlog] = useState({
-    title: "How to Choose a Meaningful Souvenir",
-    slug: "how-to-choose-a-meaningful-souvenir",
-    excerpt: "A simple guide to selecting keepsakes that feel personal, useful, and beautiful.",
-    content:
-      "Start writing your blog here.\n\n## Main idea\n\nExplain the idea clearly.\n\n## Studio note\n\nAdd a practical note, behind-the-scenes detail, or product story.",
-    author: "Keepsake Ztation Studio",
-    tags: "souvenir, studio",
-    published: true,
-  });
+    const supabase = createBrowserSupabaseClient();
+    supabase.auth.getSession().then(({ data }) => {
+      setSignedIn(Boolean(data.session));
+      setLoading(false);
+      if (data.session) void refreshAll();
+    });
 
-  const productHelp = useMemo(
-    () => [
-      "Fill out the product details.",
-      "Choose a product photo from your computer.",
-      "Click Save Product. The site writes the image and product file automatically.",
-    ],
-    []
-  );
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(Boolean(session));
+      if (session) void refreshAll();
+    });
 
-  const blogHelp = useMemo(
-    () => [
-      "Write the title, excerpt, and full blog body.",
-      "Choose a cover photo.",
-      "Click Publish Blog. The Journal page updates after refresh.",
-    ],
-    []
-  );
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
-  function updateProduct(key: string, value: string | boolean) {
-    setProduct((prev) => ({
-      ...prev,
-      [key]: value,
-      ...(key === "title" && !prev.slug ? { slug: makeSlug(String(value)) } : {}),
-    }));
-  }
-
-  function updateBlog(key: string, value: string | boolean) {
-    setBlog((prev) => ({
-      ...prev,
-      [key]: value,
-      ...(key === "title" && !prev.slug ? { slug: makeSlug(String(value)) } : {}),
-    }));
-  }
-
-  async function saveProduct(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSavingProduct(true);
-    setLastProduct(null);
-
+  async function signIn() {
     try {
-      const form = new FormData(e.currentTarget);
-      const res = await fetch("/api/products", { method: "POST", body: form });
-      const json: SaveResult = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Product save failed");
-      setLastProduct(json);
-      toast.success("Product saved and published");
+      setSaving(true);
+      const supabase = createBrowserSupabaseClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast.success("Admin unlocked");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Product save failed";
-      toast.error(message);
-      setLastProduct({ error: message });
+      toast.error(error instanceof Error ? error.message : "Login failed");
     } finally {
-      setSavingProduct(false);
+      setSaving(false);
     }
   }
 
-  async function saveBlog(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSavingBlog(true);
-    setLastBlog(null);
+  async function signOut() {
+    const supabase = createBrowserSupabaseClient();
+    await supabase.auth.signOut();
+    setSignedIn(false);
+  }
 
+  async function refreshAll() {
     try {
-      const form = new FormData(e.currentTarget);
-      const res = await fetch("/api/blogs", { method: "POST", body: form });
-      const json: SaveResult = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Blog save failed");
-      setLastBlog(json);
-      toast.success("Blog saved and published");
+      const [productData, blogData, productComments, blogComments, analyticsData, settingsData] = await Promise.all([
+        adminFetch("/api/admin/products"),
+        adminFetch("/api/admin/blogs"),
+        adminFetch("/api/admin/comments?target_type=product"),
+        adminFetch("/api/admin/comments?target_type=blog"),
+        fetch("/api/analytics").then((r) => r.json()),
+        adminFetch("/api/admin/settings"),
+      ]);
+      setProducts(productData.products ?? []);
+      setBlogs(blogData.blogs ?? []);
+      setComments([...(productComments.comments ?? []), ...(blogComments.comments ?? [])]);
+      setAnalytics(analyticsData.analytics ?? []);
+      setSettingsRows(settingsData.settings ?? []);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Blog save failed";
-      toast.error(message);
-      setLastBlog({ error: message });
-    } finally {
-      setSavingBlog(false);
+      toast.error(error instanceof Error ? error.message : "Could not load dashboard data");
     }
   }
+
+  async function uploadImage(file: File, bucket: "product-images" | "blog-images", folder: string) {
+    const token = await getToken();
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("bucket", bucket);
+    formData.append("folder", folder);
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: formData,
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Upload failed");
+    return json.url as string;
+  }
+
+  async function onProductImage(file: File | undefined) {
+    if (!file) return;
+    try {
+      toast.loading("Uploading product image", { id: "upload" });
+      const url = await uploadImage(file, "product-images", "products");
+      setProductForm((current) => ({ ...current, cover_image: url }));
+      toast.success("Product image uploaded", { id: "upload" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed", { id: "upload" });
+    }
+  }
+
+  async function onBlogImage(file: File | undefined) {
+    if (!file) return;
+    try {
+      toast.loading("Uploading blog image", { id: "upload" });
+      const url = await uploadImage(file, "blog-images", "blogs");
+      setBlogForm((current) => ({ ...current, cover_image: url }));
+      toast.success("Blog image uploaded", { id: "upload" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed", { id: "upload" });
+    }
+  }
+
+  async function saveProduct() {
+    try {
+      setSaving(true);
+      const payload = {
+        id: productForm.id,
+        title: productForm.title,
+        slug: productForm.slug || slugFrom(productForm.title),
+        description: productForm.description,
+        long_description: productForm.long_description,
+        price: productForm.price,
+        category: productForm.category,
+        tags: productForm.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+        images: productForm.cover_image ? [productForm.cover_image] : [],
+        cover_image: productForm.cover_image,
+        featured: productForm.featured,
+        available: productForm.available,
+        messenger_message: productForm.messenger_message,
+      };
+      await adminFetch("/api/admin/products", { method: "POST", body: JSON.stringify(payload) });
+      toast.success("Product saved");
+      setProductForm(emptyProduct);
+      setSection("manageProducts");
+      await refreshAll();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save product");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveBlog() {
+    try {
+      setSaving(true);
+      const payload = {
+        id: blogForm.id,
+        title: blogForm.title,
+        slug: blogForm.slug || slugFrom(blogForm.title),
+        excerpt: blogForm.excerpt,
+        content: blogForm.content,
+        cover_image: blogForm.cover_image,
+        author: blogForm.author,
+        tags: blogForm.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+        published: blogForm.published,
+        date: blogForm.date,
+      };
+      await adminFetch("/api/admin/blogs", { method: "POST", body: JSON.stringify(payload) });
+      toast.success("Blog saved");
+      setBlogForm(emptyBlog);
+      setSection("manageBlogs");
+      await refreshAll();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save blog");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteProduct(id: string) {
+    if (!confirm("Delete this product?")) return;
+    await adminFetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
+    toast.success("Product deleted");
+    await refreshAll();
+  }
+
+  async function deleteBlog(id: string) {
+    if (!confirm("Delete this blog?")) return;
+    await adminFetch(`/api/admin/blogs?id=${id}`, { method: "DELETE" });
+    toast.success("Blog deleted");
+    await refreshAll();
+  }
+
+  async function updateComment(id: string, status: "approved" | "hidden" | "pending") {
+    await adminFetch("/api/admin/comments", { method: "POST", body: JSON.stringify({ id, status }) });
+    toast.success("Comment updated");
+    await refreshAll();
+  }
+
+  async function deleteComment(id: string) {
+    await adminFetch(`/api/admin/comments?id=${id}`, { method: "DELETE" });
+    toast.success("Comment deleted");
+    await refreshAll();
+  }
+
+  async function saveSettings(formData: FormData) {
+    const payload = Object.fromEntries(formData.entries());
+    await adminFetch("/api/admin/settings", { method: "POST", body: JSON.stringify(payload) });
+    toast.success("Settings saved");
+    await refreshAll();
+  }
+
+  const stats = useMemo(() => {
+    const productViews = analytics.filter((a) => a.target_type === "product" && a.event_type === "view").reduce((sum, a) => sum + a.count, 0);
+    const blogViews = analytics.filter((a) => a.target_type === "blog" && a.event_type === "view").reduce((sum, a) => sum + a.count, 0);
+    const messengerClicks = analytics.filter((a) => a.event_type === "messenger_click").reduce((sum, a) => sum + a.count, 0);
+    return { productViews, blogViews, messengerClicks };
+  }, [analytics]);
+
+  if (loading) return <div className="bg-ivory border border-stone/10 p-8 text-sm text-muted">Loading admin studio...</div>;
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="bg-ivory border border-gold/30 p-8">
+        <p className="section-label mb-3">Supabase needed</p>
+        <h2 className="font-display text-4xl text-ink mb-3">Connect Supabase to unlock the live dashboard.</h2>
+        <p className="text-muted text-sm leading-relaxed">Add NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY to .env.local or Vercel environment variables, then restart the site.</p>
+      </div>
+    );
+  }
+
+  if (!signedIn) {
+    return (
+      <div className="max-w-xl mx-auto bg-ink text-mist border border-gold/20 p-8 shadow-2xl">
+        <p className="section-label text-gold mb-3">Private Admin</p>
+        <h2 className="font-display text-4xl mb-4">Unlock the studio desk.</h2>
+        <p className="text-sm text-mist/60 mb-6">Use the admin email and password created in Supabase Auth.</p>
+        <div className="space-y-4">
+          <input className="w-full border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-gold" placeholder="Admin email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input className="w-full border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-gold" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <button onClick={signIn} disabled={saving} className="btn-primary w-full justify-center">Sign in</button>
+        </div>
+      </div>
+    );
+  }
+
+  const sidebar = (
+    <aside className="bg-ink text-mist border border-white/10 lg:min-h-[760px]">
+      <div className="flex items-center justify-between p-5 border-b border-white/10">
+        <div>
+          <p className="section-label text-gold">Admin Menu</p>
+          <p className="font-display text-2xl">Control Room</p>
+        </div>
+        <button className="lg:hidden" onClick={() => setMenuOpen(false)} aria-label="Close admin menu"><X size={18} /></button>
+      </div>
+      <nav className="p-3 space-y-1">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => { setSection(item.id); setMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left text-xs tracking-widest uppercase transition ${section === item.id ? "bg-gold text-ink" : "text-mist/65 hover:bg-white/5 hover:text-gold"}`}
+            >
+              <Icon size={16} /> {item.label}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="p-3 border-t border-white/10">
+        <button onClick={signOut} className="w-full flex items-center gap-3 px-4 py-3 text-xs tracking-widest uppercase text-mist/60 hover:text-gold">
+          <LogOut size={16} /> Sign Out
+        </button>
+      </div>
+    </aside>
+  );
 
   return (
-    <div className="space-y-10">
-      <section className="grid grid-cols-1 lg:grid-cols-[0.78fr_1.22fr] gap-6">
-        <div className="bg-ink p-8 text-mist relative overflow-hidden">
-          <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full border border-gold/20" />
-          <div className="absolute -bottom-20 left-8 h-48 w-48 rounded-full bg-gold/10 blur-3xl" />
-          <p className="section-label mb-4">Command Desk</p>
-          <h2 className="font-display text-4xl leading-tight mb-5">
-            Publish products and blogs straight from the website.
-          </h2>
-          <p className="text-sm text-mist/60 leading-relaxed">
-            No code editing. No copying image paths. Upload a photo, fill in the form, save, then refresh the public page.
-          </p>
-          <div className="mt-8 grid grid-cols-3 gap-3 text-center">
-            {["Upload", "Save", "Refresh"].map((item) => (
-              <div key={item} className="border border-gold/20 bg-white/5 px-3 py-4">
-                <Sparkles size={16} className="mx-auto mb-2 text-gold" />
-                <p className="text-[10px] uppercase tracking-widest text-mist/70">{item}</p>
-              </div>
-            ))}
-          </div>
+    <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+      <div className="lg:hidden flex items-center justify-between bg-ink text-mist p-4">
+        <p className="font-display text-2xl">Admin Menu</p>
+        <button onClick={() => setMenuOpen(true)} aria-label="Open admin menu"><Menu /></button>
+      </div>
+      {menuOpen && <div className="fixed inset-0 z-[80] bg-black/40 lg:hidden" onClick={() => setMenuOpen(false)}><div className="w-[86vw] max-w-sm h-full" onClick={(e) => e.stopPropagation()}>{sidebar}</div></div>}
+      <div className="hidden lg:block">{sidebar}</div>
+      <main className="space-y-6">
+        {section === "dashboard" && <DashboardView products={products} blogs={blogs} comments={comments} stats={stats} setSection={setSection} />}
+        {section === "addProduct" && <ProductEditor form={productForm} setForm={setProductForm} save={saveProduct} upload={onProductImage} saving={saving} />}
+        {section === "manageProducts" && <ProductsManager products={products} edit={(row) => { setProductForm(rowToProductForm(row)); setSection("addProduct"); }} remove={deleteProduct} />}
+        {section === "addBlog" && <BlogEditor form={blogForm} setForm={setBlogForm} save={saveBlog} upload={onBlogImage} saving={saving} />}
+        {section === "manageBlogs" && <BlogsManager blogs={blogs} edit={(row) => { setBlogForm(rowToBlogForm(row)); setSection("addBlog"); }} remove={deleteBlog} />}
+        {section === "productComments" && <CommentsManager title="Product Comments" comments={comments.filter((c) => c.target_type === "product")} update={updateComment} remove={deleteComment} />}
+        {section === "blogComments" && <CommentsManager title="Blog Comments" comments={comments.filter((c) => c.target_type === "blog")} update={updateComment} remove={deleteComment} />}
+        {section === "analytics" && <AnalyticsView analytics={analytics} />}
+        {section === "settings" && <SettingsView rows={settingsRows} save={saveSettings} />}
+      </main>
+    </div>
+  );
+}
+
+function rowToProductForm(row: ProductRow): ProductForm {
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    description: row.description,
+    long_description: row.long_description ?? "",
+    price: row.price ?? "",
+    category: row.category ?? "souvenir",
+    tags: (row.tags ?? []).join(", "),
+    cover_image: row.cover_image ?? "",
+    featured: Boolean(row.featured),
+    available: row.available !== false,
+    messenger_message: row.messenger_message ?? "Hi, I want to order this product.",
+  };
+}
+
+function rowToBlogForm(row: BlogRow): BlogForm {
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    excerpt: row.excerpt,
+    content: row.content ?? "",
+    cover_image: row.cover_image ?? "",
+    author: row.author ?? "Keepsake Ztation Studio",
+    tags: (row.tags ?? []).join(", "),
+    published: row.published !== false,
+    date: (row.date ?? new Date().toISOString()).slice(0, 10),
+  };
+}
+
+function DashboardView({ products, blogs, comments, stats, setSection }: { products: ProductRow[]; blogs: BlogRow[]; comments: CommentRow[]; stats: { productViews: number; blogViews: number; messengerClicks: number }; setSection: (s: Section) => void }) {
+  return (
+    <div className="space-y-6">
+      <Panel>
+        <p className="section-label mb-3">Dashboard</p>
+        <h2 className="font-display text-5xl text-ink mb-3">A polished little cockpit for the whole showcase.</h2>
+        <p className="text-muted text-sm">Add products, publish blogs, moderate comments, and watch what visitors click without opening the source code.</p>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-8">
+          <Stat label="Products" value={products.length} />
+          <Stat label="Blogs" value={blogs.length} />
+          <Stat label="Comments" value={comments.length} />
+          <Stat label="Product views" value={stats.productViews} />
+          <Stat label="Messenger clicks" value={stats.messengerClicks} />
         </div>
+      </Panel>
+      <div className="grid md:grid-cols-2 gap-6">
+        <button onClick={() => setSection("addProduct")} className="bg-ink text-mist p-8 text-left group">
+          <PlusCircle className="text-gold mb-5" />
+          <h3 className="font-display text-3xl mb-2">Add a Product</h3>
+          <p className="text-sm text-mist/60">Upload a photo, set the price, and publish it to the collection.</p>
+        </button>
+        <button onClick={() => setSection("addBlog")} className="bg-gold/15 border border-gold/30 p-8 text-left group">
+          <PenLine className="text-gold mb-5" />
+          <h3 className="font-display text-3xl mb-2">Write a Blog</h3>
+          <p className="text-sm text-muted">Create a studio journal entry with a cover image and publish switch.</p>
+        </button>
+      </div>
+    </div>
+  );
+}
 
-        <div className="bg-ivory p-8 shadow-sm border border-stone/10">
-          <div className="flex items-center gap-3 mb-5">
-            <LockKeyhole size={18} className="text-gold" />
-            <div>
-              <h3 className="font-display text-2xl text-ink">Private Admin Note</h3>
-              <p className="text-xs text-muted">The Admin link has been removed from public header and footer navigation.</p>
-            </div>
+function ProductEditor({ form, setForm, save, upload, saving }: { form: ProductForm; setForm: (f: ProductForm) => void; save: () => void; upload: (file?: File) => void; saving: boolean }) {
+  return (
+    <Panel>
+      <p className="section-label mb-3">Product Editor</p>
+      <h2 className="font-display text-4xl text-ink mb-6">{form.id ? "Edit Product" : "Add New Product"}</h2>
+      <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Product name" value={form.title} onChange={(v) => setForm({ ...form, title: v, slug: form.slug || slugFrom(v) })} />
+            <Field label="Slug" value={form.slug} onChange={(v) => setForm({ ...form, slug: slugFrom(v) })} />
+            <Field label="Price" value={form.price} onChange={(v) => setForm({ ...form, price: v })} />
+            <Field label="Category" value={form.category} onChange={(v) => setForm({ ...form, category: v })} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-parchment/70 p-5 border border-stone/10">
-              <p className="section-label mb-3">Products</p>
-              <ul className="space-y-2 text-sm text-muted">
-                {productHelp.map((item) => (
-                  <li key={item} className="flex gap-2"><CheckCircle2 size={14} className="text-gold mt-0.5 shrink-0" />{item}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-parchment/70 p-5 border border-stone/10">
-              <p className="section-label mb-3">Blogs</p>
-              <ul className="space-y-2 text-sm text-muted">
-                {blogHelp.map((item) => (
-                  <li key={item} className="flex gap-2"><CheckCircle2 size={14} className="text-gold mt-0.5 shrink-0" />{item}</li>
-                ))}
-              </ul>
-            </div>
+          <TextField label="Short description" rows={3} value={form.description} onChange={(v) => setForm({ ...form, description: v })} />
+          <TextField label="Long description" rows={7} value={form.long_description} onChange={(v) => setForm({ ...form, long_description: v })} />
+          <Field label="Tags, separated by commas" value={form.tags} onChange={(v) => setForm({ ...form, tags: v })} />
+          <Field label="Messenger inquiry text" value={form.messenger_message} onChange={(v) => setForm({ ...form, messenger_message: v })} />
+          <div className="flex flex-wrap gap-4 text-sm text-muted">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} /> Featured</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={form.available} onChange={(e) => setForm({ ...form, available: e.target.checked })} /> Available</label>
           </div>
+          <button disabled={saving} onClick={save} className="btn-primary"><Save size={16} /> Save Product</button>
         </div>
-      </section>
+        <ImageBox image={form.cover_image} label="Product Image" onUpload={upload} />
+      </div>
+    </Panel>
+  );
+}
 
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <form onSubmit={saveProduct} className={panelClass}>
-          <div className="flex items-center gap-3 mb-6">
-            <Package className="text-gold" size={18} />
-            <div>
-              <h3 className="font-display text-2xl text-ink">Product Publisher</h3>
-              <p className="text-xs text-muted">Save a product and photo directly to the website.</p>
-            </div>
+function BlogEditor({ form, setForm, save, upload, saving }: { form: BlogForm; setForm: (f: BlogForm) => void; save: () => void; upload: (file?: File) => void; saving: boolean }) {
+  return (
+    <Panel>
+      <p className="section-label mb-3">Blog Editor</p>
+      <h2 className="font-display text-4xl text-ink mb-6">{form.id ? "Edit Blog" : "Add Blog"}</h2>
+      <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Title" value={form.title} onChange={(v) => setForm({ ...form, title: v, slug: form.slug || slugFrom(v) })} />
+            <Field label="Slug" value={form.slug} onChange={(v) => setForm({ ...form, slug: slugFrom(v) })} />
+            <Field label="Author" value={form.author} onChange={(v) => setForm({ ...form, author: v })} />
+            <Field label="Date" type="date" value={form.date} onChange={(v) => setForm({ ...form, date: v })} />
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-            <label className="space-y-2">
-              <span className={labelClass}>Title</span>
-              <input name="title" required className={fieldClass} value={product.title} onChange={(e) => updateProduct("title", e.target.value)} />
-            </label>
-            <label className="space-y-2">
-              <span className={labelClass}>Slug</span>
-              <input name="slug" required className={fieldClass} value={product.slug} onChange={(e) => updateProduct("slug", makeSlug(e.target.value))} />
-            </label>
-            <label className="space-y-2">
-              <span className={labelClass}>Price</span>
-              <input name="price" className={fieldClass} value={product.price} onChange={(e) => updateProduct("price", e.target.value)} />
-            </label>
-            <label className="space-y-2">
-              <span className={labelClass}>Category</span>
-              <select name="category" className={fieldClass} value={product.category} onChange={(e) => updateProduct("category", e.target.value)}>
-                {['souvenir','print','digital','sticker','poster','apparel','accessory','other'].map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-            </label>
-          </div>
-
-          <label className="space-y-2 block mb-4">
-            <span className={labelClass}>Short description</span>
-            <textarea name="description" required className={fieldClass} rows={3} value={product.description} onChange={(e) => updateProduct("description", e.target.value)} />
-          </label>
-          <label className="space-y-2 block mb-4">
-            <span className={labelClass}>Long description</span>
-            <textarea name="longDescription" className={fieldClass} rows={6} value={product.longDescription} onChange={(e) => updateProduct("longDescription", e.target.value)} />
-          </label>
-          <label className="space-y-2 block mb-4">
-            <span className={labelClass}>Tags</span>
-            <input name="tags" className={fieldClass} value={product.tags} onChange={(e) => updateProduct("tags", e.target.value)} placeholder="souvenir, gift, travel" />
-          </label>
-          <label className="space-y-2 block mb-5">
-            <span className={labelClass}>Product photo</span>
-            <input name="image" required type="file" accept="image/*" className="w-full border border-dashed border-stone/30 bg-parchment/70 px-4 py-6 text-sm text-muted file:mr-4 file:border-0 file:bg-ink file:px-4 file:py-2 file:text-xs file:uppercase file:tracking-widest file:text-gold" />
-          </label>
-
-          <div className="flex items-center gap-5 mb-5 text-sm text-muted">
-            <label className="flex items-center gap-2"><input name="featured" type="checkbox" checked={product.featured} onChange={(e) => updateProduct("featured", e.target.checked)} /> Featured</label>
-            <label className="flex items-center gap-2"><input name="available" type="checkbox" checked={product.available} onChange={(e) => updateProduct("available", e.target.checked)} /> Available</label>
-          </div>
-
-          <button disabled={savingProduct} className="btn-primary disabled:opacity-60" type="submit">
-            {savingProduct ? <Loader2 size={15} className="animate-spin" /> : <UploadCloud size={15} />} Save Product
-          </button>
-
-          {lastProduct && (
-            <div className="mt-5 bg-mist p-4 text-xs text-muted space-y-1">
-              {lastProduct.error ? <p className="text-rust">{lastProduct.error}</p> : <p><strong className="text-ink">Saved:</strong> /products/{lastProduct.slug}</p>}
-              {lastProduct.image && <p className="font-mono text-ink select-all">{lastProduct.image}</p>}
-            </div>
-          )}
-        </form>
-
-        <form onSubmit={saveBlog} className={panelClass}>
-          <div className="flex items-center gap-3 mb-6">
-            <BookOpen className="text-gold" size={18} />
-            <div>
-              <h3 className="font-display text-2xl text-ink">Blog Publisher</h3>
-              <p className="text-xs text-muted">Write and publish a journal post without opening the code.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-            <label className="space-y-2">
-              <span className={labelClass}>Title</span>
-              <input name="title" required className={fieldClass} value={blog.title} onChange={(e) => updateBlog("title", e.target.value)} />
-            </label>
-            <label className="space-y-2">
-              <span className={labelClass}>Slug</span>
-              <input name="slug" required className={fieldClass} value={blog.slug} onChange={(e) => updateBlog("slug", makeSlug(e.target.value))} />
-            </label>
-          </div>
-          <label className="space-y-2 block mb-4">
-            <span className={labelClass}>Excerpt</span>
-            <textarea name="excerpt" required className={fieldClass} rows={3} value={blog.excerpt} onChange={(e) => updateBlog("excerpt", e.target.value)} />
-          </label>
-          <label className="space-y-2 block mb-4">
-            <span className={labelClass}>Full blog body</span>
-            <textarea name="content" required className={fieldClass} rows={10} value={blog.content} onChange={(e) => updateBlog("content", e.target.value)} />
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-            <label className="space-y-2">
-              <span className={labelClass}>Author</span>
-              <input name="author" className={fieldClass} value={blog.author} onChange={(e) => updateBlog("author", e.target.value)} />
-            </label>
-            <label className="space-y-2">
-              <span className={labelClass}>Tags</span>
-              <input name="tags" className={fieldClass} value={blog.tags} onChange={(e) => updateBlog("tags", e.target.value)} />
-            </label>
-          </div>
-          <label className="space-y-2 block mb-5">
-            <span className={labelClass}>Cover photo</span>
-            <input name="image" required type="file" accept="image/*" className="w-full border border-dashed border-stone/30 bg-parchment/70 px-4 py-6 text-sm text-muted file:mr-4 file:border-0 file:bg-ink file:px-4 file:py-2 file:text-xs file:uppercase file:tracking-widest file:text-gold" />
-          </label>
-          <input name="date" type="hidden" value={today} />
-          <label className="mb-5 flex items-center gap-2 text-sm text-muted"><input name="published" type="checkbox" checked={blog.published} onChange={(e) => updateBlog("published", e.target.checked)} /> Published</label>
-
-          <button disabled={savingBlog} className="btn-primary disabled:opacity-60" type="submit">
-            {savingBlog ? <Loader2 size={15} className="animate-spin" /> : <UploadCloud size={15} />} Publish Blog
-          </button>
-
-          {lastBlog && (
-            <div className="mt-5 bg-mist p-4 text-xs text-muted space-y-1">
-              {lastBlog.error ? <p className="text-rust">{lastBlog.error}</p> : <p><strong className="text-ink">Saved:</strong> /blog/{lastBlog.slug}</p>}
-              {lastBlog.image && <p className="font-mono text-ink select-all">{lastBlog.image}</p>}
-            </div>
-          )}
-        </form>
-      </section>
-
-      <section className="bg-gold/10 border border-gold/30 p-6">
-        <div className="flex items-start gap-3">
-          <ImageIcon size={16} className="text-gold mt-0.5 shrink-0" />
-          <div className="text-sm text-muted space-y-1">
-            <p><strong className="text-ink">Where things save:</strong> product photos go to <code className="bg-mist px-1 py-0.5">public/uploads/products/</code> and blog photos go to <code className="bg-mist px-1 py-0.5">public/uploads/blogs/</code>.</p>
-            <p>The matching product/blog Markdown file is created automatically inside <code className="bg-mist px-1 py-0.5">content/products/</code> or <code className="bg-mist px-1 py-0.5">content/blog/</code>.</p>
-          </div>
+          <TextField label="Excerpt" rows={3} value={form.excerpt} onChange={(v) => setForm({ ...form, excerpt: v })} />
+          <TextField label="Blog content" rows={12} value={form.content} onChange={(v) => setForm({ ...form, content: v })} />
+          <Field label="Tags, separated by commas" value={form.tags} onChange={(v) => setForm({ ...form, tags: v })} />
+          <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })} /> Published</label>
+          <button disabled={saving} onClick={save} className="btn-primary"><Save size={16} /> Save Blog</button>
         </div>
-      </section>
+        <ImageBox image={form.cover_image} label="Blog Cover" onUpload={upload} />
+      </div>
+    </Panel>
+  );
+}
+
+function ProductsManager({ products, edit, remove }: { products: ProductRow[]; edit: (row: ProductRow) => void; remove: (id: string) => void }) {
+  return <TablePanel title="Manage Products" rows={products} empty="No products yet." render={(p) => (
+    <Row key={p.id} image={p.cover_image} title={p.title} meta={`${p.price ?? "No price"} · ${p.available === false ? "Hidden" : "Available"}`}>
+      <button className="btn-outline" onClick={() => edit(p)}>Edit</button>
+      <button className="btn-outline" onClick={() => remove(p.id)}><Trash2 size={14} /> Delete</button>
+    </Row>
+  )} />;
+}
+
+function BlogsManager({ blogs, edit, remove }: { blogs: BlogRow[]; edit: (row: BlogRow) => void; remove: (id: string) => void }) {
+  return <TablePanel title="Manage Blogs" rows={blogs} empty="No blogs yet." render={(b) => (
+    <Row key={b.id} image={b.cover_image} title={b.title} meta={`${b.published === false ? "Draft" : "Published"} · ${b.date ?? "No date"}`}>
+      <button className="btn-outline" onClick={() => edit(b)}>Edit</button>
+      <button className="btn-outline" onClick={() => remove(b.id)}><Trash2 size={14} /> Delete</button>
+    </Row>
+  )} />;
+}
+
+function CommentsManager({ title, comments, update, remove }: { title: string; comments: CommentRow[]; update: (id: string, status: "approved" | "hidden" | "pending") => void; remove: (id: string) => void }) {
+  return <TablePanel title={title} rows={comments} empty="No comments yet." render={(c) => (
+    <div key={c.id} className="bg-parchment border border-stone/10 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="font-semibold text-ink">{c.author_name}</p>
+          <p className="text-xs text-muted">{c.target_slug} · {c.status}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-outline" onClick={() => update(c.id, "approved")}><CheckCircle2 size={14} /> Approve</button>
+          <button className="btn-outline" onClick={() => update(c.id, "hidden")}>Hide</button>
+          <button className="btn-outline" onClick={() => remove(c.id)}><Trash2 size={14} /> Delete</button>
+        </div>
+      </div>
+      <p className="text-sm text-muted mt-4">{c.body}</p>
+    </div>
+  )} />;
+}
+
+function AnalyticsView({ analytics }: { analytics: AnalyticsRow[] }) {
+  return (
+    <Panel>
+      <p className="section-label mb-3">Analytics</p>
+      <h2 className="font-display text-4xl text-ink mb-6">Views, clicks, and quiet little footprints.</h2>
+      <div className="space-y-3">
+        {analytics.length ? analytics.map((item) => (
+          <div key={item.id} className="flex items-center justify-between bg-parchment border border-stone/10 p-4">
+            <div>
+              <p className="font-semibold text-ink">{item.target_slug}</p>
+              <p className="text-xs text-muted">{item.target_type} · {item.event_type}</p>
+            </div>
+            <p className="font-display text-3xl text-gold">{item.count}</p>
+          </div>
+        )) : <p className="text-sm text-muted">Analytics will appear once visitors view products, read blogs, or click Messenger order buttons.</p>}
+      </div>
+    </Panel>
+  );
+}
+
+function SettingsView({ rows, save }: { rows: SiteSettingRow[]; save: (data: FormData) => void }) {
+  const value = (key: string) => rows.find((row) => row.key === key)?.value ?? "";
+  return (
+    <Panel>
+      <p className="section-label mb-3">Settings</p>
+      <h2 className="font-display text-4xl text-ink mb-6">Storefront Settings</h2>
+      <form action={save} className="grid sm:grid-cols-2 gap-4">
+        <Field name="shop_name" label="Shop name" defaultValue={value("shop_name")} />
+        <Field name="messenger_url" label="Messenger link" defaultValue={value("messenger_url")} />
+        <Field name="facebook_url" label="Facebook link" defaultValue={value("facebook_url")} />
+        <Field name="instagram_url" label="Instagram link" defaultValue={value("instagram_url")} />
+        <Field name="tiktok_url" label="TikTok link" defaultValue={value("tiktok_url")} />
+        <Field name="contact_email" label="Contact email" defaultValue={value("contact_email")} />
+        <div className="sm:col-span-2"><TextField name="homepage_note" label="Homepage text" defaultValue={value("homepage_note")} rows={4} /></div>
+        <button className="btn-primary sm:col-span-2"><Save size={16} /> Save Settings</button>
+      </form>
+    </Panel>
+  );
+}
+
+function Panel({ children }: { children: React.ReactNode }) {
+  return <section className="bg-ivory border border-stone/10 p-6 lg:p-8 shadow-sm">{children}</section>;
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return <div className="bg-parchment border border-stone/10 p-4"><p className="text-[10px] uppercase tracking-widest text-muted mb-2">{label}</p><p className="font-display text-4xl text-ink">{value}</p></div>;
+}
+
+function Field(props: { label: string; value?: string; defaultValue?: string; name?: string; type?: string; onChange?: (v: string) => void }) {
+  return <label className="space-y-2 block"><span className={labelClass}>{props.label}</span><input name={props.name} type={props.type ?? "text"} className={inputClass} value={props.value} defaultValue={props.defaultValue} onChange={(e) => props.onChange?.(e.target.value)} /></label>;
+}
+
+function TextField(props: { label: string; rows: number; value?: string; defaultValue?: string; name?: string; onChange?: (v: string) => void }) {
+  return <label className="space-y-2 block"><span className={labelClass}>{props.label}</span><textarea name={props.name} rows={props.rows} className={inputClass} value={props.value} defaultValue={props.defaultValue} onChange={(e) => props.onChange?.(e.target.value)} /></label>;
+}
+
+function ImageBox({ image, label, onUpload }: { image: string; label: string; onUpload: (file?: File) => void }) {
+  return (
+    <div className="bg-parchment border border-stone/10 p-4">
+      <p className={labelClass}>{label}</p>
+      <div className="relative aspect-square bg-mist mt-3 mb-4 overflow-hidden">
+        {image ? <Image src={image} alt={label} fill className="object-cover" /> : <div className="absolute inset-0 flex items-center justify-center text-muted"><ImagePlus /></div>}
+      </div>
+      <input type="file" accept="image/*" onChange={(e) => onUpload(e.target.files?.[0])} className="text-xs" />
+      {image && <p className="mt-3 text-xs text-muted break-all">{image}</p>}
+    </div>
+  );
+}
+
+function TablePanel<T>({ title, rows, empty, render }: { title: string; rows: T[]; empty: string; render: (row: T) => React.ReactNode }) {
+  return <Panel><p className="section-label mb-3">Content</p><h2 className="font-display text-4xl text-ink mb-6">{title}</h2><div className="space-y-3">{rows.length ? rows.map(render) : <p className="text-sm text-muted">{empty}</p>}</div></Panel>;
+}
+
+function Row({ image, title, meta, children }: { image?: string | null; title: string; meta: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-parchment border border-stone/10 p-4">
+      <div className="relative h-20 w-20 bg-mist shrink-0 overflow-hidden">{image ? <Image src={image} alt={title} fill className="object-cover" /> : <Package className="absolute left-7 top-7 text-muted" size={20} />}</div>
+      <div className="flex-1"><p className="font-semibold text-ink">{title}</p><p className="text-xs text-muted">{meta}</p></div>
+      <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );
 }
