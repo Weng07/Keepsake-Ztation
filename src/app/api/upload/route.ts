@@ -1,53 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { existsSync } from "fs";
+import { NextResponse } from "next/server";
+import slugify from "slugify";
+import { requireAdmin } from "@/lib/admin-auth";
+import { createServiceSupabaseClient } from "@/lib/supabase";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const maxSize = 5 * 1024 * 1024;
 
-export async function POST(req: NextRequest) {
-  try {
-    if (!existsSync(UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
-    }
+export async function POST(request: Request) {
+  const auth = await requireAdmin(request);
+  if (auth.error) return auth.error;
+  const supabase = createServiceSupabaseClient();
+  if (!supabase) return NextResponse.json({ error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, { status: 500 });
 
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
+  const formData = await request.formData();
+  const file = formData.get("file");
+  const bucket = String(formData.get("bucket") || "product-images");
+  const folder = String(formData.get("folder") || "uploads");
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
+  if (!(file instanceof File)) return NextResponse.json({ error: "No image file received" }, { status: 400 });
+  if (!allowedTypes.includes(file.type)) return NextResponse.json({ error: "Only JPG, PNG, WEBP, and GIF images are allowed" }, { status: 400 });
+  if (file.size > maxSize) return NextResponse.json({ error: "Image must be 5MB or smaller" }, { status: 400 });
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: "File type not allowed" }, { status: 400 });
-    }
+  const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const base = slugify(file.name.replace(/\.[^.]+$/, ""), { lower: true, strict: true });
+  const path = `${folder}/${base}-${Date.now()}.${extension}`;
+  const arrayBuffer = await file.arrayBuffer();
 
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: "File too large (max 10 MB)" }, { status: 400 });
-    }
+  const { error } = await supabase.storage.from(bucket).upload(path, arrayBuffer, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const baseName = file.name
-      .replace(/\.[^.]+$/, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    const timestamp = Date.now();
-    const fileName = `${baseName}-${timestamp}.${ext}`;
-    const filePath = path.join(UPLOAD_DIR, fileName);
-
-    const bytes = await file.arrayBuffer();
-    await writeFile(filePath, Buffer.from(bytes));
-
-    return NextResponse.json({
-      url: `/uploads/${fileName}`,
-      name: fileName,
-      size: file.size,
-    });
-  } catch (err) {
-    console.error("Upload error:", err);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
-  }
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return NextResponse.json({ url: data.publicUrl, path, bucket });
 }

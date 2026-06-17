@@ -4,8 +4,6 @@ import { getAllProducts, getCategories } from "@/lib/products";
 import { categoryLabel } from "@/lib/utils";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Shop",
   description: "Browse original souvenirs, art prints, and digital goods.",
@@ -17,8 +15,8 @@ interface Props {
 
 export default async function ProductsPage({ searchParams }: Props) {
   const { category } = await searchParams;
-  const all = getAllProducts();
-  const categories = getCategories();
+  const all = await getAllProducts();
+  const categories = await getCategories();
   const products = category ? all.filter((p) => p.category === category) : all;
 
   return (

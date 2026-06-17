@@ -2,15 +2,13 @@ import type { Metadata } from "next";
 import BlogCard from "@/components/ui/BlogCard";
 import { getAllPosts } from "@/lib/blog";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Journal",
   description: "Stories, process notes, and inspiration from the studio.",
 };
 
-export default function BlogPage() {
-  const posts = getAllPosts();
+export default async function BlogPage() {
+  const posts = await getAllPosts();
 
   return (
     <div className="pt-24 min-h-screen bg-parchment">
