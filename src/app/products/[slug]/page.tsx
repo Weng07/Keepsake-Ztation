@@ -6,6 +6,8 @@ import { ArrowLeft, Download, ExternalLink, Tag } from "lucide-react";
 import { getProductBySlug, getAllProducts } from "@/lib/products";
 import { categoryLabel } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import BlogCard from "@/components/ui/BlogCard";
 import { getAllPosts } from "@/lib/blog";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Journal",
   description: "Stories, process notes, and inspiration from the studio.",

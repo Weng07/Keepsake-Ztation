@@ -12,7 +12,6 @@ const navLinks = [
   { href: "/products", label: "Shop" },
   { href: "/blog", label: "Journal" },
   { href: "/about", label: "About" },
-  { href: "/admin", label: "Admin" },
 ];
 
 export default function Header() {

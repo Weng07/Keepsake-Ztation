@@ -4,6 +4,8 @@ import { getAllProducts, getCategories } from "@/lib/products";
 import { categoryLabel } from "@/lib/utils";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Shop",
   description: "Browse original souvenirs, art prints, and digital goods.",

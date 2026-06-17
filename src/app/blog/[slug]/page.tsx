@@ -6,6 +6,8 @@ import { ArrowLeft, Clock, Calendar } from "lucide-react";
 import { getPostBySlug, getAllPosts } from "@/lib/blog";
 import { formatDate } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

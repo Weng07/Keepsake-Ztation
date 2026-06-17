@@ -123,3 +123,13 @@ Key things to keep current:
 - [Keystatic CMS](https://keystatic.com)
 - [Lemon Squeezy](https://www.lemonsqueezy.com)
 - [Vercel Deployment](https://vercel.com/docs)
+
+## Admin publishing update
+
+- Reworked the Admin Dashboard so products and blog posts can be created directly inside the website.
+- Product uploads now save the image automatically to `public/uploads/products/` and write a matching Markdown file to `content/products/`.
+- Blog uploads now save the cover image automatically to `public/uploads/blogs/` and write a matching Markdown file to `content/blog/`.
+- Public Shop and Journal pages now run dynamically so newly saved products/blogs appear after refresh during local development.
+- Removed Admin from the public header and footer navigation. The page still exists at `/admin` for direct access.
+- Replaced the copy-path workflow with real Save Product and Publish Blog forms.
+- Updated `package-lock.json` so package tarballs resolve from the public npm registry instead of the temporary internal registry used during earlier packaging.

@@ -1,15 +1,65 @@
 # Keepsake Ztation
 
-A polished Next.js 15.5.19 souvenir shop starter with Tailwind CSS v4, local product imagery, product/blog Markdown content, and a beginner-friendly admin dashboard.
+A luxury-style Next.js 15.5.19 souvenir shop starter with Tailwind CSS v4, local product images, blog content, and a beginner-friendly admin dashboard.
 
-## Run locally
+## Getting started
 
 ```bash
+npm config set registry https://registry.npmjs.org/
 npm install
 npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+## Admin dashboard
+
+The admin dashboard is available directly at:
+
+```text
+http://localhost:3000/admin
+```
+
+The Admin link is intentionally hidden from the public header and footer navigation.
+
+From the dashboard, you can:
+
+- Add a new product
+- Upload a product photo
+- Publish a blog post
+- Upload a blog cover image
+
+You do not need to copy image paths back into the source code. When you save from the admin page, the project automatically writes the image and content files.
+
+## Where uploaded content is saved
+
+Product images:
+
+```text
+public/uploads/products/
+```
+
+Blog images:
+
+```text
+public/uploads/blogs/
+```
+
+Product content files:
+
+```text
+content/products/
+```
+
+Blog content files:
+
+```text
+content/blog/
+```
+
+## Important hosting note
+
+This local file-saving admin system works well for local development and traditional Node/VPS hosting. On serverless hosts like Vercel, uploaded files and Markdown writes may not persist after deployment. For a production public store, connect the dashboard to a database or CMS such as Supabase, Firebase, Sanity, or another persistent backend.
 
 ## Tech stack
 
@@ -18,91 +68,14 @@ Open `http://localhost:3000`.
 - Tailwind CSS v4
 - `@tailwindcss/postcss`
 - `@tailwindcss/typography`
-- Local Markdown content files
-- Local images in `public/images/`
+- Local Markdown content
+- Local image uploads
 
-## Tailwind v4 setup
+## Git ignore
 
-`postcss.config.mjs` is configured for Tailwind v4:
+The project excludes install/build folders:
 
-```js
-const config = {
-  plugins: {
-    "@tailwindcss/postcss": {},
-  },
-};
-
-export default config;
+```gitignore
+node_modules/
+.next/
 ```
-
-The global stylesheet uses:
-
-```css
-@import "tailwindcss";
-@plugin "@tailwindcss/typography";
-```
-
-## Editing product images
-
-Sample product images live here:
-
-```txt
-public/images/products/
-```
-
-To replace a product image, either replace the JPG file with your own image using the same filename, or update the image path in the matching Markdown file inside:
-
-```txt
-content/products/
-```
-
-Example:
-
-```yaml
-coverImage: "/images/products/mug.jpg"
-images: ["/images/products/mug.jpg"]
-```
-
-The product image source guide is also commented in `src/lib/products.ts`.
-
-## Admin dashboard
-
-Visit:
-
-```txt
-/admin
-```
-
-The dashboard includes:
-
-- Image upload area
-- Product Markdown builder
-- Blog Markdown builder
-- Copy-ready beginner templates
-- Clear instructions for where uploaded images and content files go
-
-Uploads are saved to:
-
-```txt
-public/uploads/
-```
-
-Uploaded files are served from:
-
-```txt
-/uploads/filename.jpg
-```
-
-## Content folders
-
-```txt
-content/products/   Product Markdown files
-content/blog/       Blog Markdown files
-public/images/      Local sample images
-public/uploads/     Uploaded admin images
-```
-
-## Notes
-
-- `node_modules/` and `.next/` are intentionally ignored and not included in the ZIP.
-- Social links are safely defined in `src/lib/config.ts`, including `instagram`, `facebook`, and `tiktok`, so the footer no longer throws a missing social property error.
