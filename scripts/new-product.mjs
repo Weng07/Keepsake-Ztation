@@ -10,7 +10,7 @@ const slug = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+
 console.log("\n✦  New Product\n");
 const title = await ask("Title: ");
 const description = await ask("Short description: ");
-const price = await ask("Price (e.g. $25.00): ");
+const price = await ask("Price (e.g. ₱1,200.00): ");
 const category = await ask("Category [print/digital/souvenir/sticker/poster/apparel/other]: ");
 const tags = await ask("Tags (comma-separated): ");
 const downloadable = (await ask("Downloadable? [y/N]: ")).toLowerCase() === "y";

@@ -18,9 +18,16 @@
   --color-text-muted: #6b6b6b;
   --color-text-faint: #9a9a9a;
 
-  /* Typography */
-  --font-display: "Cormorant Garamond", "Georgia", serif;
-  --font-body: "DM Sans", "Inter", system-ui, sans-serif;
+  /* Typography
+     --font-display-family / --font-body-family are injected by next/font/google
+     in src/app/layout.tsx (via the `variable` option on each font loader) as
+     hashed, self-hosted font-family stacks already including their own
+     generic fallback. They reach every element through the className set on
+     <html>. The theme tokens below just point at them, with a final generic
+     fallback in case the next/font variables are ever unavailable (e.g. a
+     component rendered outside the root layout in isolation). */
+  --font-display: var(--font-display-family, Georgia, serif);
+  --font-body: var(--font-body-family, system-ui, sans-serif);
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
 
   /* Spacing scale extension */

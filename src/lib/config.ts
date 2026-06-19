@@ -2,14 +2,20 @@ import type { SiteConfig } from "@/types";
 
 export const siteConfig: SiteConfig = {
   name: "Keepsake Ztation",
-  tagline: "Luxury souvenirs for stories worth keeping.",
+  tagline: "Crafted with intention. Designed to be kept.",
   description:
-    "Keepsake Ztation creates refined souvenir pieces, art prints, and digital keepsakes designed for memorable gifting, travel stories, and everyday display.",
-  author: "Keepsake Ztation Studio",
-  email: "hello@keepsakeztation.com",
+    "Original souvenirs, art prints, and digital goods designed to carry meaning — handcrafted with care, made to last.",
+  author: "Your Name",
+  email: "hello@yourstudio.com",
+  // Fill in the social links you actually use — any field left as an empty
+  // string is automatically hidden in the Footer, so it's safe to leave
+  // unused platforms blank rather than deleting the key.
   social: {
     instagram: "",
     facebook: "",
     tiktok: "",
+    twitter: "",
+    etsy: "",
+    pinterest: "",
   },
 };

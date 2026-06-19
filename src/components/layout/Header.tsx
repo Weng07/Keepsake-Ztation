@@ -38,7 +38,7 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-10 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className={cn("font-display text-xl tracking-wide", scrolled || pathname !== "/" ? "text-ink" : "text-mist")}>
+        <Link href="/" className="font-display text-xl text-ink tracking-wide">
           {siteConfig.name}
         </Link>
 
@@ -52,9 +52,7 @@ export default function Header() {
                 "text-xs font-medium tracking-widest uppercase transition-colors duration-200",
                 pathname === href
                   ? "text-gold"
-                  : scrolled || pathname !== "/"
-                    ? "text-text-muted hover:text-ink"
-                    : "text-mist/75 hover:text-gold"
+                  : "text-text-muted hover:text-ink"
               )}
             >
               {label}
@@ -64,7 +62,7 @@ export default function Header() {
 
         {/* Mobile toggle */}
         <button
-          className={cn("md:hidden p-1", scrolled || pathname !== "/" ? "text-ink" : "text-mist")}
+          className="md:hidden text-ink p-1"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
         >

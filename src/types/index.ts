@@ -15,7 +15,6 @@ export interface Product {
   updatedAt: string;
   downloadable?: boolean;
   externalLink?: string;
-  messengerMessage?: string;
 }
 
 export type ProductCategory =
@@ -29,7 +28,6 @@ export type ProductCategory =
   | "other";
 
 export interface BlogPost {
-  id?: string;
   slug: string;
   title: string;
   excerpt: string;
@@ -51,9 +49,9 @@ export interface SiteConfig {
   social: {
     instagram?: string;
     facebook?: string;
-    tiktok?: string;
     twitter?: string;
     etsy?: string;
     pinterest?: string;
+    tiktok?: string;
   };
 }
