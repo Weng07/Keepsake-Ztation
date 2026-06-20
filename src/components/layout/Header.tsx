@@ -50,7 +50,7 @@ export default function Header() {
               key={href}
               href={href}
               className={cn(
-                "text-xs font-medium tracking-widest uppercase transition-colors duration-200",
+                 "text-xs font-medium tracking-widest uppercase transition-colors duration-200 [text-shadow:0_2px_6px_rgba(0,0,0,1.25)]",
                 pathname === href
                   ? "text-gold"
                   : isHomepage
