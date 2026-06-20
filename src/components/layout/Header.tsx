@@ -21,6 +21,7 @@ export default function Header() {
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -31,14 +32,20 @@ export default function Header() {
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        // Always carries a dark, translucent backdrop so the logo and nav
+        // stay legible over any hero image or light page background —
+        // it just deepens slightly once the page is scrolled.
         scrolled
-          ? "bg-parchment/95 backdrop-blur-sm border-b border-stone/10 shadow-sm"
-          : "bg-transparent"
+          ? "bg-ink/95 backdrop-blur-md shadow-lg shadow-black/10"
+          : "bg-ink/40 backdrop-blur-sm"
       )}
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-10 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="font-display text-xl text-ink tracking-wide">
+        <Link
+          href="/"
+          className="font-display text-xl text-gold tracking-wide"
+        >
           {siteConfig.name}
         </Link>
 
@@ -52,7 +59,7 @@ export default function Header() {
                 "text-xs font-medium tracking-widest uppercase transition-colors duration-200",
                 pathname === href
                   ? "text-gold"
-                  : "text-text-muted hover:text-ink"
+                  : "text-mist/70 hover:text-gold"
               )}
             >
               {label}
@@ -62,7 +69,7 @@ export default function Header() {
 
         {/* Mobile toggle */}
         <button
-          className="md:hidden text-ink p-1"
+          className="md:hidden text-mist p-1"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
         >
@@ -72,14 +79,14 @@ export default function Header() {
 
       {/* Mobile Menu */}
       {open && (
-        <div className="md:hidden bg-parchment border-t border-stone/10 px-6 py-6 flex flex-col gap-5">
+        <div className="md:hidden bg-ink/95 backdrop-blur-md border-t border-gold/10 px-6 py-6 flex flex-col gap-5">
           {navLinks.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               className={cn(
                 "text-sm font-medium tracking-widest uppercase",
-                pathname === href ? "text-gold" : "text-text-muted"
+                pathname === href ? "text-gold" : "text-mist/70"
               )}
             >
               {label}

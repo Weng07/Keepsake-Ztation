@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Package, LayoutGrid, BookOpen, PenLine, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Package, LayoutGrid, BookOpen, PenLine, ArrowRight, LogOut, Loader2 } from "lucide-react";
 
 const sections = [
   {
@@ -47,11 +49,40 @@ const sections = [
 ];
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  };
+
   return (
     <div className="pt-24 min-h-screen bg-parchment">
       <div className="max-w-5xl mx-auto px-6 lg:px-10 py-16">
-        <p className="section-label mb-3">Studio Admin</p>
-        <h1 className="font-display text-5xl text-ink mb-2">Dashboard</h1>
+        <div className="flex items-start justify-between mb-2 gap-4">
+          <div>
+            <p className="section-label mb-3">Studio Admin</p>
+            <h1 className="font-display text-5xl text-ink">Dashboard</h1>
+          </div>
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="shrink-0 inline-flex items-center gap-2 text-xs tracking-widest uppercase text-muted hover:text-rust transition-colors mt-3"
+          >
+            {loggingOut ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <LogOut size={13} />
+            )}
+            Sign Out
+          </button>
+        </div>
         <p className="text-muted mb-14">Manage your products, journal, and showcase — all from here.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

@@ -13,7 +13,7 @@ export default function HomePage() {
 
   return (
     <>
-      <Hero />
+      <Hero featuredProduct={featured[0]} />
 
       {/* Featured Products */}
       <section className="py-24 bg-parchment">

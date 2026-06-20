@@ -6,6 +6,10 @@ This file tracks planned enhancements and how to add them. Product, photo, and b
 
 ## Ready to Add
 
+### Multiple Admin Users
+
+The current setup supports exactly one admin username/password pair, which covers the common case of a single shop owner. If you ever need separate logins for multiple people, the cleanest upgrade path is swapping `src/lib/auth.ts`'s single-credential check for a small user list (still no database required — a JSON file or a few more `.env.local` entries works fine at small scale), or moving to a hosted auth provider like Clerk or Auth.js if you need invites, roles, or password resets.
+
 ### Payments / Checkout
 
 Right now, each product's `externalLink` field can point to an Etsy listing, Gumroad page, or any external checkout — already wired up via the admin product form.
@@ -101,6 +105,8 @@ For reference, these were previously listed here as "to add" and are now built i
 - ✅ **Showcase curation** — `/admin/showcase`, pick which products appear on the homepage
 - ✅ **Cloud image storage** — Supabase Storage, configured via `.env.local`, with automatic local-disk fallback
 - ✅ **Faster page loads** — self-hosted fonts via `next/font`, server-rendered public pages
+- ✅ **Admin login protection** — `/admin` and its underlying APIs are locked behind a username/password, enforced in `middleware.ts`
+- ✅ **Richer, fuller homepage hero** with a real featured-product visual and a header that stays legible at every scroll position
 
 ---
 
