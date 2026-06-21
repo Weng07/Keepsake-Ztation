@@ -4,7 +4,7 @@ excerpt: "What makes a souvenir actually work — and why most don't."
 date: "2025-01-08"
 author: "Your Name"
 tags: ["design", "process", "craft"]
-coverImage: "/images/blog/keepsake-process.jpg"
+coverImage: "/images/blog/on-making-things-to-keep.svg"
 published: true
 ---
 

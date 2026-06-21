@@ -15,8 +15,8 @@ interface Props {
 
 export default async function ProductsPage({ searchParams }: Props) {
   const { category } = await searchParams;
-  const all = await getAllProducts();
-  const categories = await getCategories();
+  const all = getAllProducts();
+  const categories = getCategories();
   const products = category ? all.filter((p) => p.category === category) : all;
 
   return (

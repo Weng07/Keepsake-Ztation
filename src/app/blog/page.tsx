@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   description: "Stories, process notes, and inspiration from the studio.",
 };
 
-export default async function BlogPage() {
-  const posts = await getAllPosts();
+export default function BlogPage() {
+  const posts = getAllPosts();
 
   return (
     <div className="pt-24 min-h-screen bg-parchment">

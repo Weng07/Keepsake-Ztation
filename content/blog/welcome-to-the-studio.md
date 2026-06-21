@@ -4,7 +4,7 @@ excerpt: "A first entry — where the work comes from, and where it's going."
 date: "2025-01-15"
 author: "Your Name"
 tags: ["studio", "introduction"]
-coverImage: "/images/blog/studio-table.jpg"
+coverImage: "/images/blog/welcome-to-the-studio.svg"
 published: true
 ---
 

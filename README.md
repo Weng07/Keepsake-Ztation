@@ -1,114 +1,294 @@
-# Keepsake Ztation
+# Keepsake Ztation — Souvenir & Digital Product Studio
 
-A live-ready showcase website for a luxury souvenir studio. Built with Next.js 15.5.19, Tailwind CSS v4, and a Supabase-powered admin dashboard.
+A professional showcase site and shop for souvenirs, art prints, and digital products. Built with Next.js 15.5.19, TypeScript, and Tailwind CSS v4. Everything — products, photos, and blog posts — is managed entirely from an admin dashboard in your browser. No code editing, no file copying, required for day-to-day use.
 
-## What this version includes
+---
 
-- Public showcase pages for products, blogs, about, and home
-- No cart and no customer accounts
-- Product ordering through a Messenger button
-- Private admin dashboard with Supabase Auth login
-- Hamburger/sidebar admin menu
-- Add, edit, publish, hide, and delete products
-- Add, edit, publish, unpublish, and delete blogs
-- Upload product and blog images to Supabase Storage
-- Product and blog comments with admin moderation
-- Product views, blog views, and Messenger click analytics
-- Settings page for Messenger and social links
-- Tailwind CSS v4 PostCSS setup
-- Vercel-ready environment variables
-
-## Install locally
+## Quick Start
 
 ```bash
+# 1. Install dependencies
 npm install
+
+# 2. Start the dev server
 npm run dev
+
+# 3. Open in browser
+# http://localhost:3000
 ```
 
-Open:
+> **VSCode users:** Open the project folder and run `npm install` then `npm run dev` in the integrated terminal (`Ctrl+`` ` or `Cmd+`` `).
 
-```text
-http://localhost:3000
-```
+The public site (homepage, shop, blog, about) works immediately with zero configuration — sample products and blog posts are included. The **admin dashboard requires a one-time setup** (a username and password you choose yourself) before it can be used — see **Admin Login Setup** below. Uploaded images are saved locally during development; see **Cloud Storage Setup** before deploying to production.
 
-Admin:
+---
 
-```text
-http://localhost:3000/admin
-```
+## Admin Login Setup (required, do this first)
 
-## Supabase setup
+The `/admin` dashboard is protected by a username and password — without setting this up, the dashboard is **fully locked**, not open. You only need to do this once.
 
-Create a free Supabase project, then open the SQL Editor and run:
-
-```text
-supabase/schema.sql
-```
-
-Create two public storage buckets in Supabase Storage:
-
-```text
-product-images
-blog-images
-```
-
-For each bucket, make it public so uploaded images display on the website.
-
-Create an admin user in Supabase:
-
-```text
-Authentication -> Users -> Add user
-```
-
-Use that email and password to log in at `/admin`.
-
-## Environment variables
-
-Create `.env.local` using `.env.example`:
+1. Copy `.env.local.example` to a new file named `.env.local` in the project root
+2. Fill in three values:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+ADMIN_USERNAME=your-chosen-username
+ADMIN_PASSWORD=your-chosen-password
+SESSION_SECRET=a-long-random-string
 ```
 
-Important: never expose `SUPABASE_SERVICE_ROLE_KEY` in client code. It is only used inside server API routes.
+`ADMIN_USERNAME` and `ADMIN_PASSWORD` can be anything you like — there's no separate signup step, you're choosing both right now. `SESSION_SECRET` just needs to be long and random (you'll never type it in yourself); generate one with:
 
-## Vercel deployment
-
-1. Push the project to GitHub.
-2. Import the repo into Vercel.
-3. Add the same environment variables in Vercel Project Settings.
-4. Deploy.
-
-## Admin dashboard guide
-
-The admin menu includes:
-
-```text
-Dashboard
-Add Product
-Manage Products
-Add Blog
-Manage Blogs
-Product Comments
-Blog Comments
-Analytics
-Settings
+```bash
+openssl rand -hex 32
 ```
 
-Products, blogs, comments, analytics, and settings are stored in Supabase. You do not need to edit source files after publishing content through the dashboard.
+If you don't have `openssl` handy, any sufficiently long random string works — 40+ random characters is fine.
 
-## Messenger ordering
+3. Restart `npm run dev`
+4. Go to `http://localhost:3000/admin` — you'll be redirected to a sign-in page. Log in with the username and password you set above.
 
-Add your Messenger link in:
+This protection covers the entire `/admin` area **and** the underlying APIs it uses (`/api/products`, `/api/blog`, `/api/upload`) — so someone can't bypass the login screen by calling those endpoints directly either. If you ever forget your password, just edit the value in `.env.local` and restart the server.
 
-```text
-/admin -> Settings -> Messenger link
+---
+
+## Managing Your Site (Admin Dashboard)
+
+Go to **http://localhost:3000/admin** while the dev server is running. Everything below happens entirely through the website — no `.md` files to write by hand, no paths to copy and paste.
+
+| What you want to do | Where to go |
+|---|---|
+| Add a new product (photo, price, description) | `/admin/products/new` |
+| Edit or delete an existing product | `/admin/products` |
+| Choose which products show on the homepage | `/admin/showcase` |
+| Write a new blog post | `/admin/blog/new` |
+| Edit, publish, or delete a blog post | `/admin/blog` |
+
+Adding a product:
+1. Drag a photo into the upload box (it uploads immediately)
+2. Fill in the title, description, price (use ₱ for Philippine Peso, or any currency symbol you prefer — it's a free-text field), and category
+3. Click **Publish Product** — it's live on `/products` instantly
+
+Writing a blog post works the same way: upload a cover photo, write your post in the text area (Markdown formatting like `**bold**`, `## headings`, and `[links](url)` all work), then publish or save as a draft.
+
+---
+
+## Cloud Storage Setup (Supabase)
+
+By default, uploaded photos are saved to `public/uploads/` on your computer's disk. This works fine for local development, but **will not work on most production hosts** (Vercel, Netlify, etc.) since their filesystems are read-only or temporary — uploads would silently fail or disappear after a deploy.
+
+To fix this, connect free Supabase Storage:
+
+1. Create a free project at **[supabase.com](https://supabase.com)**
+2. In your project dashboard: **Storage** → **New bucket** → name it `uploads` → toggle **Public** on
+3. Go to **Project Settings** → **API** and copy:
+   - **Project URL**
+   - **service_role** secret key (not the "anon public" key — see note below)
+4. Copy `.env.local.example` to a new file named `.env.local` in the project root and fill in:
+
+```env
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+SUPABASE_STORAGE_BUCKET=uploads
 ```
 
-Each product has an Order on Messenger button. Button clicks are tracked in analytics.
+5. Restart `npm run dev`. Uploads now go to Supabase Storage automatically — no other code changes needed.
 
-## Notes
+**Important:** Use the **service_role** key, not the **anon public** key. The service role key lets the server upload files directly. The anon key expects a signed-in Supabase Auth session, which a plain upload form doesn't have — using it here is the most common cause of upload failures and `getToken()`-style authentication errors. The service role key bypasses storage permissions, so it must stay in `.env.local` only and never be exposed to the browser (never prefix it with `NEXT_PUBLIC_`).
 
-If Supabase environment variables are missing, the public site falls back to the original Markdown sample content. The live admin dashboard requires Supabase.
+If Supabase isn't configured yet, the upload feature still works locally — it just falls back to disk automatically, so you can develop without setting any of this up first.
+
+---
+
+## Project Structure
+
+```
+keepsake-ztation/
+├── .env.local.example   ← Copy to .env.local — admin login keys (required) + Supabase keys (optional)
+├── content/
+│   ├── blog/            ← Blog posts (auto-generated by /admin/blog)
+│   └── products/        ← Product listings (auto-generated by /admin/products)
+├── public/
+│   ├── images/          ← Sample product & blog images (replace freely)
+│   └── uploads/         ← Local-disk uploads (used only if Supabase isn't set up)
+├── scripts/
+│   ├── new-product.mjs  ← Optional CLI: scaffold a product file from the terminal
+│   └── new-blog.mjs     ← Optional CLI: scaffold a blog post file from the terminal
+└── src/
+    ├── middleware.ts             — Enforces admin login on every request
+    ├── app/
+    │   ├── page.tsx              — Home
+    │   ├── login/                — Admin sign-in page
+    │   ├── products/             — Public shop + product detail pages
+    │   ├── blog/                 — Public journal + post detail pages
+    │   ├── about/                — About page
+    │   ├── admin/                — Full admin dashboard (products, blog, showcase)
+    │   └── api/
+    │       ├── auth/             — Login / logout
+    │       ├── upload/           — Image upload (Supabase or local fallback)
+    │       ├── products/         — Product CRUD API
+    │       └── blog/              — Blog post CRUD API
+    ├── components/
+    │   ├── layout/        ← Header, Footer
+    │   ├── sections/      ← Hero
+    │   └── ui/            ← ProductCard, BlogCard, ProductForm, BlogForm
+    ├── lib/                ← Content loaders, auth, Supabase client, utilities, site config
+    ├── styles/             ← Global CSS + Tailwind v4 theme tokens
+    └── types/              ← TypeScript interfaces
+```
+
+---
+
+## Customizing Your Site Identity
+
+Edit `src/lib/config.ts`:
+
+```ts
+export const siteConfig = {
+  name: "Your Studio Name",
+  tagline: "Your tagline here.",
+  description: "Your meta description.",
+  author: "Your Name",
+  email: "hello@yourstudio.com",
+  social: {
+    instagram: "https://instagram.com/yourstudio",
+    facebook: "",
+    tiktok: "",
+    twitter: "",
+    etsy: "",
+    pinterest: "",
+  },
+};
+```
+
+Leave any social field as an empty string to hide that icon in the Footer — nothing will break either way.
+
+---
+
+## Replacing Sample Images
+
+Sample product and blog photos live in `public/images/products/` and `public/images/blog/`. They're illustrative placeholders made to look appropriate for a souvenir shop (keychain, mug, tote bag, ceramic token, map print, journal covers) — replace them anytime by:
+
+- Uploading new photos directly through `/admin/products` or `/admin/blog` (recommended — this updates everything automatically), **or**
+- Manually adding a file to `public/images/products/` and editing the matching entry in `content/products/*.md`
+
+See the comments at the top of `src/lib/products.ts` for more detail on how image paths are wired up.
+
+---
+
+## Optional: Command-Line Scaffolding
+
+If you prefer working from the terminal instead of the admin dashboard:
+
+```bash
+npm run new:product   # Prompts for product details, creates the .md file
+npm run new:blog       # Prompts for post details, creates the .md file
+```
+
+These are optional — the admin dashboard does everything these scripts do, plus image upload, with no terminal needed.
+
+---
+
+## Available Commands
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server (with Turbopack) |
+| `npm run build` | Build for production |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run type-check` | TypeScript type check |
+| `npm run format` | Format code with Prettier |
+| `npm run new:product` | (Optional) scaffold a new product file from the terminal |
+| `npm run new:blog` | (Optional) scaffold a new blog post file from the terminal |
+
+---
+
+## Pages
+
+| Route | Description |
+|---|---|
+| `/` | Homepage with hero, featured products, recent posts |
+| `/products` | Full product grid with category filter |
+| `/products/[slug]` | Product detail page |
+| `/blog` | Blog listing |
+| `/blog/[slug]` | Individual blog post |
+| `/about` | About / contact page |
+| `/admin` | Admin dashboard — manage everything from here |
+| `/login` | Admin sign-in (you're redirected here automatically if not logged in) |
+
+---
+
+## Deployment
+
+### Vercel (recommended — free)
+
+1. Set up Supabase Storage first (see above) — Vercel's filesystem can't store uploads otherwise
+2. Push to a GitHub repo
+3. Go to [vercel.com](https://vercel.com) → New Project → Import your repo
+4. Add these as Environment Variables in the Vercel project settings: `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`
+5. Deploy
+
+### Other platforms
+
+Build output is a standard Next.js app. Works on Netlify, Railway, Render, or any Node.js host — same Supabase environment variables apply.
+
+```bash
+npm run build    # Build
+npm run start    # Serve (requires Node 18+)
+```
+
+---
+
+## Why the Site Loads Fast
+
+A couple of changes specifically target page-load speed:
+
+- **Fonts are self-hosted.** Instead of loading Cormorant Garamond and DM Sans from Google's servers on every visit (a render-blocking network request), `next/font/google` downloads and bundles them at build time. The page no longer waits on an external server before it can show text.
+- **Server-rendered public pages.** The homepage, shop, and blog are rendered on the server and sent as ready-to-display HTML — no extra round-trip fetching data after the page loads. Only the `/admin` dashboard (which needs live, editable data) runs as a client-side app.
+- **Automatic image optimization.** `next/image` (backed by `sharp`) serves correctly sized WebP/AVIF images instead of full-resolution originals.
+
+---
+
+## Design Tokens
+
+Colors, fonts, and spacing are defined in `src/styles/globals.css` under `@theme`. Key values:
+
+| Token | Value | Use |
+|---|---|---|
+| `--color-ink` | `#0e0e0e` | Background (dark sections) |
+| `--color-parchment` | `#faf8f4` | Background (light sections) |
+| `--color-gold` | `#c9a84c` | Accent, labels, highlights |
+| `--color-mist` | `#f5f3ef` | Light section backgrounds |
+| `--font-display` | Cormorant Garamond (self-hosted via next/font) | Headings |
+| `--font-body` | DM Sans (self-hosted via next/font) | Body copy |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 15.5.19 (App Router, Turbopack) |
+| Language | TypeScript 5 |
+| Styling | Tailwind CSS v4 + `@tailwindcss/typography` |
+| Content | Markdown + `gray-matter`, rendered with `next-mdx-remote` |
+| Storage | Supabase Storage (with automatic local-disk fallback for dev) |
+| Admin Auth | Signed session cookie via Node's built-in `crypto` (no extra dependency), enforced in `middleware.ts` |
+| Images | `next/image` with `sharp` (WebP/AVIF auto-optimization) |
+| Fonts | `next/font/google` (self-hosted, no external requests) |
+| Icons | Lucide React |
+| Date formatting | `date-fns` |
+| Upload UI | `react-dropzone` |
+| Notifications | `react-hot-toast` |
+
+---
+
+## Future Updates
+
+See `UPDATES.md` for a roadmap of features that can be added next (payment integration, image galleries, newsletter signup, and more).
+
+---
+
+## License
+
+Personal and commercial use permitted. Not for redistribution as a template.

@@ -3,38 +3,32 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Download, ExternalLink, Tag } from "lucide-react";
+import { MDXRemote } from "next-mdx-remote/rsc";
 import { getProductBySlug, getAllProducts } from "@/lib/products";
 import { categoryLabel } from "@/lib/utils";
-import { getSiteSetting } from "@/lib/settings";
-import AnalyticsTracker from "@/components/ui/AnalyticsTracker";
-import MessengerOrderButton from "@/components/ui/MessengerOrderButton";
-import CommentsBox from "@/components/ui/CommentsBox";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
 export async function generateStaticParams() {
-  const products = await getAllProducts();
-  return products.map((p) => ({ slug: p.slug }));
+  return getAllProducts().map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const product = getProductBySlug(slug);
   if (!product) return {};
   return { title: product.title, description: product.description };
 }
 
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const product = getProductBySlug(slug);
   if (!product) notFound();
-  const messengerUrl = await getSiteSetting("messenger_url", "");
 
   return (
     <div className="pt-24 min-h-screen bg-parchment">
-      <AnalyticsTracker targetType="product" targetSlug={product.slug} />
       <div className="max-w-7xl mx-auto px-6 lg:px-10 py-16">
         <Link href="/products" className="inline-flex items-center gap-2 text-xs tracking-widest uppercase text-muted hover:text-gold transition-colors mb-12">
           <ArrowLeft size={14} /> Back to Shop
@@ -73,19 +67,20 @@ export default async function ProductDetailPage({ params }: Props) {
             <div className="divider-gold mb-6" />
             <p className="text-muted leading-relaxed mb-8">{product.description}</p>
 
-            {product.longDescription && (
-              <div className="prose prose-sm max-w-none mb-8 text-muted" dangerouslySetInnerHTML={{ __html: product.longDescription }} />
+            {product.longDescription?.trim() && (
+              <div className="prose prose-sm max-w-none mb-8 text-muted prose-headings:font-display prose-headings:font-normal prose-a:text-gold prose-a:no-underline hover:prose-a:underline">
+                <MDXRemote source={product.longDescription} />
+              </div>
             )}
 
             {/* Actions */}
             <div className="flex flex-col gap-3">
-              <MessengerOrderButton productSlug={product.slug} productTitle={product.title} message={product.messengerMessage} messengerUrl={messengerUrl} />
               {product.externalLink && (
-                <a href={product.externalLink} target="_blank" rel="noopener noreferrer" className="btn-outline justify-center">
+                <a href={product.externalLink} target="_blank" rel="noopener noreferrer" className="btn-primary justify-center">
                   {product.downloadable ? (
                     <><Download size={16} /> Download</>
                   ) : (
-                    <><ExternalLink size={16} /> External Link</>
+                    <><ExternalLink size={16} /> Buy Now</>
                   )}
                 </a>
               )}
@@ -107,7 +102,6 @@ export default async function ProductDetailPage({ params }: Props) {
             )}
           </div>
         </div>
-        <CommentsBox targetType="product" targetSlug={product.slug} />
       </div>
     </div>
   );

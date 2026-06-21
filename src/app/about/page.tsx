@@ -5,10 +5,14 @@ import { siteConfig } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "The story behind Studio Keepsake.",
+  description: `The story behind ${siteConfig.name}.`,
 };
 
 export default function AboutPage() {
+  // Defensive fallback so this page never crashes even if siteConfig.social
+  // is missing or only partially filled in.
+  const social = siteConfig.social ?? {};
+
   return (
     <div className="pt-24 min-h-screen bg-parchment">
       {/* Hero */}
@@ -95,8 +99,8 @@ export default function AboutPage() {
             <a href={`mailto:${siteConfig.email}`} className="btn-primary">
               <Mail size={16} /> {siteConfig.email}
             </a>
-            {siteConfig.social.instagram && (
-              <a href={siteConfig.social.instagram} target="_blank" rel="noopener noreferrer" className="btn-outline">
+            {social.instagram && (
+              <a href={social.instagram} target="_blank" rel="noopener noreferrer" className="btn-outline">
                 <Instagram size={16} /> Instagram
               </a>
             )}

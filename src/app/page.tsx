@@ -7,13 +7,13 @@ import { getFeaturedProducts } from "@/lib/products";
 import { getAllPosts } from "@/lib/blog";
 import { siteConfig } from "@/lib/config";
 
-export default async function HomePage() {
-  const featured = (await getFeaturedProducts()).slice(0, 3);
-  const recentPosts = (await getAllPosts()).slice(0, 2);
+export default function HomePage() {
+  const featured = getFeaturedProducts().slice(0, 3);
+  const recentPosts = getAllPosts().slice(0, 2);
 
   return (
     <>
-      <Hero />
+      <Hero featuredProduct={featured[0]} />
 
       {/* Featured Products */}
       <section className="py-24 bg-parchment">
