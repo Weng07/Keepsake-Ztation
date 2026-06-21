@@ -20,6 +20,49 @@ const CATEGORIES: { value: ProductCategory; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
+const CURRENCIES = [
+  { code: "PHP", symbol: "₱", label: "PHP — Philippine Peso" },
+  { code: "USD", symbol: "$", label: "USD — US Dollar" },
+] as const;
+
+type CurrencyCode = (typeof CURRENCIES)[number]["code"];
+
+// Saved prices are a single string like "₱1,200.00" or "$24.00" (this
+// format is unchanged from before, so every product saved previously
+// still works). When editing an existing product, this pulls the
+// currency symbol and the plain number back apart so the dropdown and
+// number field can each show the right piece.
+function parsePrice(price: string | undefined): { currency: CurrencyCode; amount: string } {
+  if (!price) return { currency: "PHP", amount: "" };
+
+  const match = CURRENCIES.find((c) => price.trim().startsWith(c.symbol));
+  if (match) {
+    return { currency: match.code, amount: price.trim().slice(match.symbol.length).trim() };
+  }
+
+  // Saved price didn't start with a known symbol (e.g. an old manually
+  // typed value with no symbol, or a different currency entirely) — keep
+  // the amount as-is and default the dropdown to PHP rather than
+  // guessing wrong or losing the value.
+  return { currency: "PHP", amount: price.trim() };
+}
+
+// Combines the dropdown + number back into the single saved string
+// format, e.g. currency "PHP" + amount "1200" -> "₱1,200.00"
+function formatPrice(currency: CurrencyCode, amount: string): string {
+  const symbol = CURRENCIES.find((c) => c.code === currency)?.symbol ?? "";
+  const trimmed = amount.trim();
+  if (!trimmed) return "";
+
+  const numeric = Number(trimmed.replace(/,/g, ""));
+  if (Number.isNaN(numeric)) return `${symbol}${trimmed}`;
+
+  return `${symbol}${numeric.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 interface Props {
   initial?: Partial<Product>;
   mode: "create" | "edit";
@@ -31,11 +74,14 @@ export default function ProductForm({ initial, mode, slug }: Props) {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
+  const initialPrice = parsePrice(initial?.price);
+
   const [form, setForm] = useState({
     title: initial?.title ?? "",
     description: initial?.description ?? "",
     longDescription: initial?.longDescription ?? "",
-    price: initial?.price ?? "",
+    priceCurrency: initialPrice.currency,
+    priceAmount: initialPrice.amount,
     category: initial?.category ?? ("print" as ProductCategory),
     tags: Array.isArray(initial?.tags) ? initial.tags.join(", ") : "",
     coverImage: initial?.coverImage ?? "",
@@ -109,6 +155,7 @@ export default function ProductForm({ initial, mode, slug }: Props) {
     try {
       const payload = {
         ...form,
+        price: formatPrice(form.priceCurrency, form.priceAmount),
         tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
       };
 
@@ -252,13 +299,31 @@ export default function ProductForm({ initial, mode, slug }: Props) {
             <label className="block text-xs tracking-widest uppercase text-muted mb-2">
               Price
             </label>
-            <input
-              type="text"
-              value={form.price}
-              onChange={(e) => set("price", e.target.value)}
-              placeholder="₱1,200.00"
-              className="w-full bg-ivory border border-stone/20 px-4 py-3 text-ink text-sm focus:outline-none focus:border-gold transition-colors"
-            />
+            <div className="flex gap-2">
+              <select
+                value={form.priceCurrency}
+                onChange={(e) => set("priceCurrency", e.target.value as CurrencyCode)}
+                className="w-28 bg-ivory border border-stone/20 px-3 py-3 text-ink text-sm focus:outline-none focus:border-gold transition-colors appearance-none cursor-pointer"
+                aria-label="Currency"
+              >
+                {CURRENCIES.map(({ code, symbol }) => (
+                  <option key={code} value={code}>{symbol} {code}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={form.priceAmount}
+                onChange={(e) => set("priceAmount", e.target.value)}
+                placeholder="1,200.00"
+                className="flex-1 bg-ivory border border-stone/20 px-4 py-3 text-ink text-sm focus:outline-none focus:border-gold transition-colors"
+              />
+            </div>
+            {form.priceAmount && (
+              <p className="text-xs text-faint mt-1.5">
+                Will be saved as: {formatPrice(form.priceCurrency, form.priceAmount) || "—"}
+              </p>
+            )}
           </div>
 
           <div>
