@@ -5,8 +5,8 @@ export const siteConfig: SiteConfig = {
   tagline: "Crafted with intention. Designed to be kept.",
   description:
     "Original souvenirs, art prints, and digital goods designed to carry meaning — handcrafted with care, made to last.",
-  author: "Your Name",
-  email: "hello@yourstudio.com",
+  author: "ZK",
+  email: "",
   // Fill in the social links you actually use — any field left as an empty
   // string is automatically hidden in the Footer, so it's safe to leave
   // unused platforms blank rather than deleting the key.
